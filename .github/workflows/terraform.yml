@@ -1,0 +1,93 @@
+#此工作流安装最新版本的Terraform CLI并配置Terraform CLI配置文件
+#使用Terraform Cloud的API标记(app.terraform.io)。在拉入请求事件上，将运行此工作流
+#'terraform init'、'terraform fmt'和'terraform plan'(通过Terraform Cloud的推测计划)。on推送事件
+#到“主”分支，将执行“地形应用”。
+#
+#“hashicorp/setup-terraform”的文档位于此处：https://github.com/hashicorp/setup-terraform
+#
+#要使用此工作流，您需要完成以下设置步骤。
+#
+#1.使用定义的“远程”后端和一个或多个资源，在此存储库的根目录中创建一个“main.tf”文件。
+#示例'main.tf'：
+##“远程”后端的配置。
+#地形{
+#后端“远程”{
+##您的Terraform Cloud组织的名称。
+#organization="示例-organization"
+#
+##用于存储Terraform状态文件的Terraform Cloud工作区的名称。
+#个工作区{
+#name="示例工作区"
+#         }
+#       }
+#     }
+#
+##不执行任何操作的示例资源。
+#resource"null_resource""example"{
+#触发器={
+#value="不执行任何操作的示例资源！"
+#       }
+#     }
+#
+#
+#2.生成Terraform Cloud用户API令牌，并将其作为GitHub密钥(例如TF_API_TOKEN)存储在此存储库上。
+#文档：
+#-https://www.terraform.io/docs/cloud/users-teams-organizations/api-tokens.html
+#-https://help.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets
+#
+#3.使用“hashicorp/setup-terraform”GitHub操作引用步骤中的GitHub密钥。
+#示例：
+#-名称：安装Terraform
+#uses:hashicorp/setup-terraform@v1
+#with：
+#cli_config_credentials_token：${secrets.TF_API_TOKEN}}
+
+姓名:'地形'
+
+在……之上:
+推:
+分支机构:[ "主要" ]
+pull_request:
+
+权限:
+内容:读
+
+工作:
+地形地貌:
+姓名:'地形'
+run-on:ubuntu-最新
+环境:生产
+
+    #无论GitHub操作运行器是ubuntu-lastest、macos-lastest还是windows-lastest，都使用Bash shell
+默认值:
+跑:
+壳:猛击
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: terraform init
+
+    # Checks that all Terraform configuration files adhere to a canonical format
+    - name: Terraform Format
+      run: terraform fmt -check
+
+    # Generates an execution plan for Terraform
+    - name: Terraform Plan
+      run: terraform plan -input=false
+
+      # On push to "main", build or change infrastructure according to Terraform configuration files
+      # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
+      run: terraform apply -auto-approve -input=false
